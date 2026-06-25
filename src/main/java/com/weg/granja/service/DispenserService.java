@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 @Service
@@ -37,6 +38,9 @@ public class DispenserService {
     @Value("${app.refeicao.janta.fim:22:00}")
     private String jantaFim;
 
+    @Value("${app.timezone:America/Sao_Paulo}")
+    private String timezone;
+
     // ── Dispensagem (leitura de crachá) ─────────────────────────────────────
 
     @Transactional
@@ -53,8 +57,8 @@ public class DispenserService {
 
         if (jaRetiradas >= config.getLimitePorcoes()) {
             throw new NegocioException(
-                "Limite de " + config.getLimitePorcoes() + " porção(ões) atingido. Retirada bloqueada.",
-                HttpStatus.FORBIDDEN
+                    "Limite de " + config.getLimitePorcoes() + " porção(ões) atingido. Retirada bloqueada.",
+                    HttpStatus.FORBIDDEN
             );
         }
 
@@ -69,15 +73,15 @@ public class DispenserService {
         long restantes = config.getLimitePorcoes() - utilizadas;
 
         return new DispenserResponseDTO(
-            "LIBERADO",
-            "✅ Porção liberada! Bom apetite, " + colaborador.getNome().split(" ")[0] + "!",
-            colaborador.getNome(),
-            colaborador.getMatricula(),
-            refeicaoAtual,
-            (int) utilizadas,
-            (int) restantes,
-            config.getLimitePorcoes(),
-            LocalDateTime.now()
+                "LIBERADO",
+                "✅ Porção liberada! Bom apetite, " + colaborador.getNome().split(" ")[0] + "!",
+                colaborador.getNome(),
+                colaborador.getMatricula(),
+                refeicaoAtual,
+                (int) utilizadas,
+                (int) restantes,
+                config.getLimitePorcoes(),
+                LocalDateTime.now()
         );
     }
 
@@ -105,16 +109,16 @@ public class DispenserService {
         }
 
         return new CotaResponseDTO(
-            colaborador.getNome(),
-            colaborador.getMatricula(),
-            colaborador.getTurno(),
-            colaborador.isTemSegundaRefeicao(),
-            hoje,
-            refeicao,
-            limite,
-            (int) utilizadas,
-            (int) Math.max(0, limite - utilizadas),
-            autorizado
+                colaborador.getNome(),
+                colaborador.getMatricula(),
+                colaborador.getTurno(),
+                colaborador.isTemSegundaRefeicao(),
+                hoje,
+                refeicao,
+                limite,
+                (int) utilizadas,
+                (int) Math.max(0, limite - utilizadas),
+                autorizado
         );
     }
 
@@ -132,9 +136,9 @@ public class DispenserService {
             String turnoLabel = colaborador.getTurno().name();
             String refeicaoLabel = refeicao == TipoRefeicao.ALMOCO ? "almoço" : "janta";
             throw new NegocioException(
-                "Colaborador do turno " + turnoLabel + " não autorizado para retirada no " + refeicaoLabel +
-                ". Apenas colaboradores com vale segunda refeição podem retirar em ambos os turnos.",
-                HttpStatus.FORBIDDEN
+                    "Colaborador do turno " + turnoLabel + " não autorizado para retirada no " + refeicaoLabel +
+                            ". Apenas colaboradores com vale segunda refeição podem retirar em ambos os turnos.",
+                    HttpStatus.FORBIDDEN
             );
         }
     }
@@ -153,7 +157,7 @@ public class DispenserService {
 
     private TipoRefeicao detectarRefeicaoAtual() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm");
-        LocalTime agora = LocalTime.now();
+        LocalTime agora = LocalTime.now(ZoneId.of(timezone));
         LocalTime almocoStart = LocalTime.parse(almocoInicio, fmt);
         LocalTime almocoEnd   = LocalTime.parse(almocoFim, fmt);
         LocalTime jantaStart  = LocalTime.parse(jantaInicio, fmt);
@@ -166,9 +170,9 @@ public class DispenserService {
             return TipoRefeicao.JANTA;
         }
         throw new NegocioException(
-            "Refeitório fechado no momento. Horário do almoço: " + almocoInicio + " às " + almocoFim +
-            " | Horário da janta: " + jantaInicio + " às " + jantaFim + ".",
-            HttpStatus.FORBIDDEN
+                "Refeitório fechado no momento. Horário do almoço: " + almocoInicio + " às " + almocoFim +
+                        " | Horário da janta: " + jantaInicio + " às " + jantaFim + ".",
+                HttpStatus.FORBIDDEN
         );
     }
 
@@ -176,18 +180,18 @@ public class DispenserService {
 
     private Colaborador buscarColaboradorAtivo(String matricula) {
         return colaboradorRepository.findByMatriculaAndAtivoTrue(matricula)
-            .orElseThrow(() -> new NegocioException(
-                "Crachá não reconhecido ou colaborador inativo. Matrícula: " + matricula,
-                HttpStatus.NOT_FOUND
-            ));
+                .orElseThrow(() -> new NegocioException(
+                        "Crachá não reconhecido ou colaborador inativo. Matrícula: " + matricula,
+                        HttpStatus.NOT_FOUND
+                ));
     }
 
     private long contarRetiradasHoje(Colaborador colaborador, TipoRefeicao refeicao, LocalDate data) {
         return retiradaRepository.contarRetiradas(
-            colaborador,
-            refeicao,
-            data.atStartOfDay(),
-            data.atTime(23, 59, 59)
+                colaborador,
+                refeicao,
+                data.atStartOfDay(),
+                data.atTime(23, 59, 59)
         );
     }
 }
